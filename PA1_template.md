@@ -5,6 +5,7 @@
 
 
 
+
 ```r
 #set the working path with setwd()
 #read the data file
@@ -218,3 +219,4 @@ xyplot(avg_steps~interval | daytype, data = dt_date_new,
 ```
 ## [1] "the above panel plot shows the 5-minute interval(x-axis) against the average number of steps taken averaged across weekday days or weekend days(y-axis)"
 ```
+
