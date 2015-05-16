@@ -1,0 +1,140 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+---
+
+
+## Loading and preprocessing the data
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(data.table)
+library(lattice)
+setwd("C:\\Users\\PC\\Desktop\\MOOC\\module5\\ass1")
+```
+
+```{r, echo=TRUE}
+#set the working path with setwd()
+#read the data file
+df = read.csv('activity.csv', header = TRUE)
+
+#show the data structure
+names(df)
+str(df)
+head(df)
+```
+
+## What is mean total number of steps taken per day?
+```{r, echo=TRUE}
+#create a table with total number of steps taken per day
+dt = data.table(df)
+dt_date = dt[, list(total_steps = sum(steps, na.rm = TRUE)), by = date]
+
+plot_hist = function(x, title){
+    hist(x, 
+         breaks = 20,
+         main = title,
+         xlab = 'total number of steps', 
+         col = 'grey',
+         cex.main = .9)    
+}
+
+plot_hist(dt_date$total_steps, 'number of steps taken per day')
+```
+```{r, echo=FALSE}
+print('The above histogram shows the total number of steps taken per day')
+print(paste('The mean of the total number of steps taken per day is ', round(mean(dt_date$total_steps),1)))
+print(paste('The median of the total number of steps taken per day is ', round(median(dt_date$total_steps),1)))
+```
+
+## What is the average daily activity pattern?
+```{r, echo=TRUE}
+#create a table with average number of steps by interval
+dt_interval = dt[, list(avg_steps = mean(steps, na.rm = TRUE)), 
+                               by = interval]
+#plot by 5 minute-time interval
+with(dt_interval, {
+    plot(interval, avg_steps, type = 'l',
+         main = 'average steps by interval',
+         xlab = '5-minute interval',
+         ylab = 'average number of steps')
+})
+
+#cal maximum number of steps for a 5-minute interval
+max_steps = dt_interval[which.max(avg_steps), ]
+```
+
+```{r, echo=FALSE}
+print(paste('The ', max_steps$interval,'th time interval contains the maximum number of ', round(max_steps$avg_steps, 1), ' steps', sep = ''))
+```
+
+## Imputing missing values
+```{r, echo=TRUE}
+#number of NAs
+sum(is.na(df$steps))
+
+#sort and join the tables
+setkey(dt, interval)
+setkey(dt_interval, interval)
+dt_new = dt[dt_interval]
+
+#replace NAs with the mean
+replace_fn = function(x,y){
+    if(is.na(x)){
+        
+        return(y)
+    }
+    return(x)
+}
+dt_new$new_steps = mapply(replace_fn, dt_new$steps, dt_new$avg_steps)
+
+#create new table with total number of steps by date 
+dt_date_new = dt_new[, list(new_steps = sum(new_steps, na.rm = TRUE)), 
+                                    by = date]
+#show the new table
+head(dt_date_new)
+
+plot_hist(dt_date_new$new_steps, 'with NAs replace by mean')
+```
+
+```{r, echo=FALSE}
+print('The above histogram shows the total number of steps taken per day with NAs replaced with the mean')
+print(paste('The new mean of the total number of steps taken per day is ', round(mean(dt_date_new$new_steps),1)))
+print(paste('The new median of the total number of steps taken per day is ', round(median(dt_date_new$new_steps),1)))
+print('the resulting mean and median are higher compared to the first part of the assignment when the NAs are replaced with the mean')
+```
+
+
+## Are there differences in activity patterns between weekdays and weekends?
+```{r, echo=TRUE}
+#function to determine day type
+day_type = function(x){
+    if(x %in% c('Saturday', 'Sunday')){
+        return('Weekend')
+    }
+    return('Weekday')
+}
+
+#add day name
+dt_new$dayname = weekdays(as.Date(dt_new$date))
+#add day type as a factor variable
+dt_new$daytype = as.factor(apply(as.matrix(dt_new$dayname), 1, day_type))
+
+#create new table with average number of steps by interval, daytype
+dt_date_new = dt_new[, list(avg_steps = mean(new_steps, na.rm = TRUE)), 
+                                    by = list(interval, daytype)]
+
+#show new table
+str(dt_date_new)
+
+#plotting a panel plot with the average number of steps against interval
+xyplot(avg_steps~interval | daytype, data = dt_date_new,
+       type = 'l',
+       xlab = 'interval',
+       ylab = 'average number of steps',
+       layout = c(1,2))
+```
+
+```{r, echo=FALSE}
+print('the above panel plot shows the 5-minute interval(x-axis) against the average number of steps taken averaged across weekday days or weekend days(y-axis)')
+```
